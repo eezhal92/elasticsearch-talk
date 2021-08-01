@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mbah Toogle</title>
+
+  <style>
+    #app {
+      width: 768px;
+      margin: 0 auto;
+    }
+    em {
+      background: yellow;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <p><router-link to="/">Home</router-link></p>
+    <router-view></router-view>
+  </div>
+
+  <script src="https://unpkg.com/vue@2.5.0/dist/vue.js"></script>
+  <script src="https://unpkg.com/vue-router@3.5.2/dist/vue-router.min.js"></script>
+  <script type="text/javascript">
+    Vue.use(VueRouter);
+
+    function getAuthorsStr(article) {
+      return article.authors.join(', ');
+    }
+
+    const JournalArticle = Vue.component('journal-article', {
+      props: ['article'],
+      computed: {
+        authors () {
+          return getAuthorsStr(this.article);
+        },
+      },
+      template: `
+      <div style="margin-bottom: 2rem">
+        <h2><router-link :to="'/article/' + article.id">{{ article.title }}</router-link></h2>
+        <p>Authors: {{ authors }}</p>
+        <div v-html="article.abstract"></div>
+      </div>
+      `,
+    });
+
+    const HomeView = Vue.extend({
+      template: `
+      <div>
+        <form @submit.prevent="handleSubmit">
+          <label for="">Mbah Toogle</label>
+          <input v-model="query" placeholder="arep golek apa le'" autofocus>
+          <button>Search</button>
+          <p><i>Try: green design, sustainable development, agriculture</i></p>
+        </form>
+
+        <p v-if="!result.length && dirty">No result</p>
+        <div v-if="result.length">
+          <journal-article v-for="art in result" :key="art.id" :article="art" />
+        </div>
+      </div>
+      `,
+      data: () => ({ 
+        query: '', 
+        dirty: false,
+        result: []
+      }),
+      methods: {
+        handleSubmit() {
+          this.dirty = true;
+          this.search(this.query)
+        },
+        search(query) {
+          fetch(`http://localhost:5000/search?q=${query}`)
+            .then(res => res.json())
+            .then((result) => {
+              if (Array.isArray(result)) {
+                this.result = result;
+              } else {
+                this.result = [];
+              }
+            });
+        },
+      },
+    });
+
+    const ArticleDetailView = Vue.extend({
+      template: `
+        <div>
+          <div v-if="article">
+            <h1>{{ article.title }}</h1>
+            <p>Authors: {{ authors }}</p>
+            <div v-html="article.abstract"></div>
+          </div>
+        </div>
+      `,
+
+      data () {
+        return {
+          article: null,
+        };
+      },
+
+      computed: {
+        authors () {
+          if (!this.article) return '';
+
+          return getAuthorsStr(this.article);
+        }
+      },
+
+      mounted () {
+        this.getArticle();
+      },
+
+      methods: {
+        getArticle () {
+          fetch('/articles/'+this.$route.params.id)
+            .then(res => res.json())
+            .then((data) => {
+              if (!data) return;
+
+              this.article = data;
+            });
+        },
+      },
+    });
+
+    const router = new VueRouter({
+      routes: [
+        { path: '/', component: HomeView },
+        { path: '/article/:id', component: ArticleDetailView },
+      ],
+    });
+
+    new Vue({
+      el: '#app',
+      router,
+    });
+  </script>
+</body>
+</html>
